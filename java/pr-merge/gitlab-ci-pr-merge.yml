@@ -1,0 +1,98 @@
+# GitLab CI/CD Pipeline for Java PR Merge
+
+image: maven:3.8-openjdk-11
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+stages:
+  - validate
+  - test
+  - quality
+  - security
+
+# Validate pom.xml and dependencies
+validate:
+  stage: validate
+  script:
+    - mvn $MAVEN_CLI_OPTS validate
+    - mvn $MAVEN_CLI_OPTS compile
+
+# Run all tests
+test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS verify
+  artifacts:
+    reports:
+      junit:
+        - target/surefire-reports/TEST-*.xml
+        - target/failsafe-reports/TEST-*.xml
+    paths:
+      - target/site/jacoco/
+
+# Code quality analysis
+code-quality:
+  stage: quality
+  script:
+    - mvn $MAVEN_CLI_OPTS checkstyle:checkstyle pmd:pmd spotbugs:spotbugs
+  artifacts:
+    paths:
+      - target/site/
+    expire_in: 1 week
+
+# SonarQube analysis
+sonarqube:
+  stage: quality
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - mvn $MAVEN_CLI_OPTS sonar:sonar
+      -Dsonar.projectKey=${CI_PROJECT_NAME}
+      -Dsonar.host.url=${SONAR_HOST_URL}
+      -Dsonar.login=${SONAR_TOKEN}
+      -Dsonar.qualitygate.wait=true
+  allow_failure: true
+
+# Security scanning
+security-scan:
+  stage: security
+  script:
+    - mvn $MAVEN_CLI_OPTS org.owasp:dependency-check-maven:check
+  artifacts:
+    paths:
+      - target/dependency-check-report.html
+    expire_in: 1 week
+
+# Container scanning if using Docker
+container-scan:
+  stage: security
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - if [ -f Dockerfile ]; then
+    - docker build -t $CI_PROJECT_PATH:$CI_COMMIT_REF_SLUG .
+    - docker run --rm -v $(pwd):/tmp aquasec/trivy image --exit-code 1 --severity HIGH,CRITICAL $CI_PROJECT_PATH:$CI_COMMIT_REF_SLUG
+    - fi
+  allow_failure: true
+  rules:
+    - exists:
+        - Dockerfile

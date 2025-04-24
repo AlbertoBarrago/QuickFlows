@@ -1,0 +1,92 @@
+# GitLab CI/CD Pipeline for Java Maven Projects
+
+image: maven:3.8-openjdk-11
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+stages:
+  - validate
+  - compile
+  - test
+  - package
+  - quality
+
+# Validate pom.xml and dependencies
+validate:
+  stage: validate
+  script:
+    - mvn $MAVEN_CLI_OPTS validate
+
+# Compile the project
+compile:
+  stage: compile
+  script:
+    - mvn $MAVEN_CLI_OPTS compile
+  artifacts:
+    paths:
+      - target/classes/
+
+# Run unit tests
+unit-test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+  artifacts:
+    reports:
+      junit: target/surefire-reports/TEST-*.xml
+
+# Run integration tests
+integration-test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS verify -DskipUnitTests
+  artifacts:
+    reports:
+      junit: target/failsafe-reports/TEST-*.xml
+
+# Package the application
+package:
+  stage: package
+  script:
+    - mvn $MAVEN_CLI_OPTS package -DskipTests
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 1 week
+
+# Code quality analysis with SonarQube
+sonarqube-check:
+  stage: quality
+  image: maven:3.8-openjdk-11
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+    GIT_DEPTH: "0"
+  cache:
+    key: "${CI_JOB_NAME}"
+    paths:
+      - .sonar/cache
+  script:
+    - mvn $MAVEN_CLI_OPTS verify sonar:sonar
+      -Dsonar.projectKey=${CI_PROJECT_NAME}
+      -Dsonar.host.url=${SONAR_HOST_URL}
+      -Dsonar.login=${SONAR_TOKEN}
+      -Dsonar.qualitygate.wait=true
+  allow_failure: true
+
+# Dependency vulnerability scan
+dependency-check:
+  stage: quality
+  script:
+    - mvn $MAVEN_CLI_OPTS org.owasp:dependency-check-maven:check
+  artifacts:
+    paths:
+      - target/dependency-check-report.html
+    expire_in: 1 week
+  allow_failure: true

@@ -1,0 +1,127 @@
+# GitLab CI/CD Pipeline for Java Tagging
+
+image: maven:3.8-openjdk-11
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+  VERSION: ${CI_COMMIT_TAG:1}
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+
+stages:
+  - validate
+  - update-version
+  - build
+  - publish
+  - notify
+
+# Validate the tag format
+validate-tag:
+  stage: validate
+  image: alpine:latest
+  script:
+    - |
+      if [[ ! "$CI_COMMIT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Invalid tag format. Must be in format vX.Y.Z"
+        exit 1
+      fi
+    - echo "Tag validation successful for $CI_COMMIT_TAG"
+
+# Update version in pom.xml
+update-pom-version:
+  stage: update-version
+  script:
+    - mvn $MAVEN_CLI_OPTS versions:set -DnewVersion=${VERSION}
+    - mvn $MAVEN_CLI_OPTS versions:commit
+  artifacts:
+    paths:
+      - pom.xml
+
+# Generate changelog
+generate-changelog:
+  stage: update-version
+  image: node:16-alpine
+  before_script:
+    - apk add --no-cache git
+    - npm install -g conventional-changelog-cli
+  script:
+    - |
+      if [ ! -f CHANGELOG.md ]; then
+        echo "# Changelog\n\nAll notable changes to this project will be documented in this file.\n" > CHANGELOG.md
+      fi
+    - conventional-changelog -p angular -i CHANGELOG.md -s -r 0
+    - git config --global user.name "GitLab CI"
+    - git config --global user.email "gitlab-ci@example.com"
+    - git add CHANGELOG.md pom.xml
+    - git commit -m "chore: update version and changelog for $CI_COMMIT_TAG"
+    - git push https://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:${CI_COMMIT_REF_NAME}
+  dependencies:
+    - update-pom-version
+
+# Build the application
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS clean package
+  artifacts:
+    paths:
+      - target/*.jar
+
+# Publish to Maven repository
+publish-maven:
+  stage: publish
+  script:
+    - mvn $MAVEN_CLI_OPTS deploy -DskipTests
+  dependencies:
+    - build
+
+# Create release in GitLab
+create-release:
+  stage: publish
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - echo "Creating release for $CI_COMMIT_TAG"
+  release:
+    name: 'Release $CI_COMMIT_TAG'
+    description: './CHANGELOG.md'
+    tag_name: '$CI_COMMIT_TAG'
+    ref: '$CI_COMMIT_TAG'
+  dependencies:
+    - build
+
+# Publish Docker image if Dockerfile exists
+publish-docker:
+  stage: publish
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+    - docker tag $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG $CI_REGISTRY_IMAGE:latest
+    - docker push $CI_REGISTRY_IMAGE:latest
+  rules:
+    - exists:
+        - Dockerfile
+
+# Send notification about release
+notify:
+  stage: notify
+  image: curlimages/curl:latest
+  script:
+    - |
+      curl -X POST -H "Content-Type: application/json" \
+      --data "{\"text\":\"🏷️ New tag ${CI_COMMIT_TAG} has been created and released!\"}" \
+      ${SLACK_WEBHOOK_URL}
+  dependencies: []
