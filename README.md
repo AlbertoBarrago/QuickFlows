@@ -20,18 +20,7 @@ This collection serves as:
 1. A reference guide for DevOps engineers and developers
 2. Educational material for learning CI/CD, containerization, infrastructure as code, and orchestration best practices
 3. A foundation for implementing DevOps and CI/CD in real-world projects
-4. A starting point for open-source contributions
-
-## Repository Structure
-
-```
-devops_collection/
-├── pipelines/      # CI/CD pipeline templates for Node.js, Java, Python
-├── docker/         # Dockerfiles, Compose examples, and environment configs
-├── terraform/      # Infrastructure as Code for AWS, Azure, GCP
-├── kubernetes/     # Deployments, services, and ingress manifests
-└── README.md
-```
+4. A starting point for open-source 
 
 ## Pipeline Types
 
