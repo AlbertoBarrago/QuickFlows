@@ -1,0 +1,72 @@
+# Kubernetes Service Example
+
+# ClusterIP Service (internal access only)
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service-internal
+  namespace: web-app
+  labels:
+    app: web-application
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: web-application
+---
+# NodePort Service (accessible from outside the cluster via node IP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service-nodeport
+  namespace: web-app
+  labels:
+    app: web-application
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 80
+    nodePort: 30080
+    protocol: TCP
+    name: http
+  selector:
+    app: web-application
+---
+# LoadBalancer Service (cloud provider load balancer)
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service-lb
+  namespace: web-app
+  labels:
+    app: web-application
+  annotations:
+    # Cloud provider specific annotations
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-internal: "false"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: web-application
+
+# Usage:
+# 1. Apply the service: kubectl apply -f web-service.yaml
+# 2. Check service status: kubectl get services -n web-app
+# 3. Access ClusterIP service from within the cluster: curl http://web-service-internal.web-app.svc.cluster.local
+# 4. Access NodePort service: curl http://<node-ip>:30080
+# 5. Access LoadBalancer service: curl http://<load-balancer-ip>
+
+# Service types explained:
+# 1. ClusterIP: Exposes the service on a cluster-internal IP. Only reachable from within the cluster.
+# 2. NodePort: Exposes the service on each Node's IP at a static port. Accessible from outside the cluster.
+# 3. LoadBalancer: Exposes the service externally using a cloud provider's load balancer.

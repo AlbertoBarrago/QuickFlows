@@ -1,0 +1,67 @@
+# Docker Compose example for a web application with database
+version: '3.8'
+
+services:
+  # Web application service
+  webapp:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
+    container_name: webapp
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=appdb
+      - DB_USER=appuser
+      # In production, use secrets management instead of environment variables
+      - DB_PASSWORD=apppassword
+    depends_on:
+      - db
+    networks:
+      - app-network
+    volumes:
+      - ./webapp/logs:/app/logs
+
+  # Database service
+  db:
+    image: postgres:14-alpine
+    container_name: app-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=appdb
+      - POSTGRES_USER=appuser
+      # In production, use secrets management instead of environment variables
+      - POSTGRES_PASSWORD=apppassword
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+
+# Persistent volumes
+volumes:
+  db-data:
+    driver: local
+
+# Custom network
+networks:
+  app-network:
+    driver: bridge
+
+# Usage:
+# Start: docker-compose -f web-app-with-db.yml up -d
+# Stop: docker-compose -f web-app-with-db.yml down
+# Stop and remove volumes: docker-compose -f web-app-with-db.yml down -v
+
+# Benefits of Docker Compose:
+# 1. Define multi-container applications in a single file
+# 2. Start all services with a single command
+# 3. Create isolated environments for each project
+# 4. Simplify configuration with environment variables
+# 5. Manage service dependencies

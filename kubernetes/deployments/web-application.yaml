@@ -1,0 +1,92 @@
+# Kubernetes Deployment Example for Web Application
+
+# Namespace for the application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web-app
+  labels:
+    name: web-app
+---
+# ConfigMap for application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-app-config
+  namespace: web-app
+data:
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  API_URL: "https://api.example.com"
+---
+# Deployment for the web application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-application
+  namespace: web-app
+  labels:
+    app: web-application
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web-application
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: web-application
+    spec:
+      containers:
+      - name: web-app
+        image: nginx:1.21-alpine
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          name: http
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        envFrom:
+        - configMapRef:
+            name: web-app-config
+      # Security context for the pod
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+
+# Usage:
+# 1. Apply the deployment: kubectl apply -f web-application.yaml
+# 2. Check deployment status: kubectl get deployments -n web-app
+# 3. View pods: kubectl get pods -n web-app
+# 4. Delete deployment: kubectl delete -f web-application.yaml
+
+# Key features demonstrated:
+# 1. Namespace isolation
+# 2. ConfigMap for configuration
+# 3. Resource limits and requests
+# 4. Health checks (readiness and liveness probes)
+# 5. Rolling update strategy
+# 6. Security context for running as non-root user

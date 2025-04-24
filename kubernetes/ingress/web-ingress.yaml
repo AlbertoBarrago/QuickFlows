@@ -1,0 +1,74 @@
+# Kubernetes Ingress Example
+
+# Ingress resource for routing external HTTP traffic
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-ingress
+  namespace: web-app
+  annotations:
+    # Ingress controller specific annotations
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Enable CORS
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+spec:
+  tls:
+  - hosts:
+    - example.com
+    - www.example.com
+    secretName: example-tls
+  rules:
+  - host: example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service-internal
+            port:
+              number: 80
+  - host: www.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service-internal
+            port:
+              number: 80
+  - host: api.example.com
+    http:
+      paths:
+      - path: /v1
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 8080
+      - path: /v2
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service-v2
+            port:
+              number: 8080
+
+# Usage:
+# 1. Install an Ingress controller (e.g., nginx-ingress, traefik)
+# 2. Apply the ingress: kubectl apply -f web-ingress.yaml
+# 3. Check ingress status: kubectl get ingress -n web-app
+
+# Key features demonstrated:
+# 1. Host-based routing (example.com, www.example.com, api.example.com)
+# 2. Path-based routing (/v1, /v2)
+# 3. TLS/SSL configuration
+# 4. Annotations for customizing behavior
+# 5. Integration with cert-manager for automatic TLS certificates

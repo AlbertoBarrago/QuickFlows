@@ -1,26 +1,15 @@
-# DevOps Pipeline Collection
+# QuickFlows
 
-This repository contains a comprehensive collection of CI/CD pipeline templates in YAML for different scenarios (build, tagging, release, PR merge) covering Node.js, Java, and Python projects. These templates follow industry best practices and include mock data for educational purposes.
+This repository contains a comprehensive collection of DevOps resources, including CI/CD pipeline templates, Docker examples, Terraform configurations, and Kubernetes manifests. These resources cover different scenarios (build, tagging, release, PR merge) for Node.js, Java, and Python projects, as well as infrastructure and container orchestration best practices. All templates and examples are organized in dedicated directories for each technology.
 
 ## Repository Structure
 
 ```
 devops_collection/
-├── node/
-│   ├── build/
-│   ├── pr-merge/
-│   ├── release/
-│   └── tagging/
-├── java/
-│   ├── build/
-│   ├── pr-merge/
-│   ├── release/
-│   └── tagging/
-├── python/
-│   ├── build/
-│   ├── pr-merge/
-│   ├── release/
-│   └── tagging/
+├── pipelines/      # CI/CD pipeline templates for Node.js, Java, Python
+├── docker/         # Dockerfiles, Compose examples, and environment configs
+├── terraform/      # Infrastructure as Code for AWS, Azure, GCP
+├── kubernetes/     # Deployments, services, and ingress manifests
 └── README.md
 ```
 
@@ -29,9 +18,20 @@ devops_collection/
 This collection serves as:
 
 1. A reference guide for DevOps engineers and developers
-2. Educational material for learning CI/CD best practices
-3. A foundation for implementing CI/CD in real-world projects
+2. Educational material for learning CI/CD, containerization, infrastructure as code, and orchestration best practices
+3. A foundation for implementing DevOps and CI/CD in real-world projects
 4. A starting point for open-source contributions
+
+## Repository Structure
+
+```
+devops_collection/
+├── pipelines/      # CI/CD pipeline templates for Node.js, Java, Python
+├── docker/         # Dockerfiles, Compose examples, and environment configs
+├── terraform/      # Infrastructure as Code for AWS, Azure, GCP
+├── kubernetes/     # Deployments, services, and ingress manifests
+└── README.md
+```
 
 ## Pipeline Types
 
@@ -45,16 +45,22 @@ This collection serves as:
 - **Node.js**: JavaScript runtime for building server-side applications
 - **Java**: General-purpose programming language commonly used for enterprise applications
 - **Python**: Versatile programming language used for web development, data science, and more
+- **Docker**: Platform for developing, shipping, and running applications in containers
+- **Terraform**: Infrastructure as Code tool for building, changing, and versioning infrastructure
+- **Kubernetes**: Container orchestration platform for automating deployment, scaling, and management
 
 ## Usage
 
-These templates can be adapted for use with various CI/CD platforms such as:
+These templates and examples can be adapted for use with various CI/CD platforms and DevOps tools such as:
 
 - GitHub Actions
 - GitLab CI/CD
 - Jenkins
 - CircleCI
 - Azure DevOps
+- Docker Compose
+- Kubernetes clusters
+- Cloud providers (AWS, Azure, GCP)
 
 Each template includes comments explaining the purpose of each step and how to customize it for your specific needs.
 
