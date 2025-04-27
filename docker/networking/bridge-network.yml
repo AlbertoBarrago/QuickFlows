@@ -1,0 +1,112 @@
+# Docker Compose example for bridge network configuration
+version: '3.8'
+
+services:
+  # Web service
+  web:
+    image: nginx:alpine
+    container_name: web-service
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - frontend
+    volumes:
+      - ./web-content:/usr/share/nginx/html
+    # Health check for the web service
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # API service
+  api:
+    image: node:18-alpine
+    container_name: api-service
+    restart: unless-stopped
+    working_dir: /app
+    command: ["node", "server.js"]
+    ports:
+      - "3000:3000"
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - ./api:/app
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=database
+      - DB_PORT=5432
+    depends_on:
+      - database
+    # Health check for the API service
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Database service
+  database:
+    image: postgres:14-alpine
+    container_name: db-service
+    restart: unless-stopped
+    networks:
+      - backend
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=appdb
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppassword
+    # Health check for the database service
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+# Define networks
+networks:
+  frontend:
+    driver: bridge
+    # Configure network options
+    driver_opts:
+      com.docker.network.bridge.name: frontend-bridge
+    # Configure IPAM (IP Address Management)
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
+  
+  backend:
+    driver: bridge
+    # Configure network options
+    driver_opts:
+      com.docker.network.bridge.name: backend-bridge
+    # Configure IPAM
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.29.0.0/16
+          gateway: 172.29.0.1
+
+# Define volumes
+volumes:
+  db-data:
+    driver: local
+
+# Usage:
+# docker-compose -f bridge-network.yml up -d
+# docker-compose -f bridge-network.yml down
+
+# Benefits of bridge networks:
+# 1. Isolation between different networks
+# 2. Secure communication between containers
+# 3. Custom IP address management
+# 4. Automatic DNS resolution between containers

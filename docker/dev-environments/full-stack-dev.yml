@@ -1,0 +1,125 @@
+# Docker Compose for full-stack development environment
+version: '3.8'
+
+services:
+  # Frontend development service with hot-reloading
+  frontend:
+    image: node:18-alpine
+    container_name: frontend-dev
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      # Anonymous volume to prevent node_modules from being overwritten
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - REACT_APP_API_URL=http://localhost:4000
+      - WATCHPACK_POLLING=true
+    depends_on:
+      - backend
+
+  # Backend development service with auto-restart
+  backend:
+    image: node:18-alpine
+    container_name: backend-dev
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend:/app
+      # Anonymous volume to prevent node_modules from being overwritten
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_NAME=devdb
+      - DB_USER=devuser
+      - DB_PASSWORD=devpassword
+      - REDIS_HOST=cache
+      - REDIS_PORT=6379
+    depends_on:
+      - database
+      - cache
+
+  # Database service for development
+  database:
+    image: postgres:14-alpine
+    container_name: postgres-dev
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_DB=devdb
+      - POSTGRES_USER=devuser
+      - POSTGRES_PASSWORD=devpassword
+
+  # Cache service
+  cache:
+    image: redis:alpine
+    container_name: redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  # Database admin tool
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - ADMINER_DEFAULT_SERVER=database
+    depends_on:
+      - database
+
+  # Mail testing service
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP port
+      - "8025:8025" # Web UI port
+
+  # Mock API service for frontend development
+  mockapi:
+    image: node:18-alpine
+    container_name: mockapi
+    working_dir: /app
+    command: sh -c "npm install -g json-server && json-server --watch /app/data/db.json --host 0.0.0.0 --port 3001"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./mockapi:/app
+
+# Define volumes for persistent data
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# Usage:
+# docker-compose -f full-stack-dev.yml up -d
+# docker-compose -f full-stack-dev.yml down
+
+# Development Environment Features:
+# 1. Hot-reloading for frontend and backend
+# 2. Persistent database for development data
+# 3. Database administration tool
+# 4. Email testing service
+# 5. Mock API for frontend development
+# 6. Volume mounts for real-time code changes
+# 7. Environment variables configured for development

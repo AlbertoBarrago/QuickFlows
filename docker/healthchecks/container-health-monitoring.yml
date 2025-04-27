@@ -1,0 +1,106 @@
+# Docker Compose example for container health monitoring
+version: '3.8'
+
+services:
+  # Web application with comprehensive health checks
+  webapp:
+    image: nginx:alpine
+    container_name: webapp-health
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./html:/usr/share/nginx/html
+    # Basic health check for web server
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # API service with custom health check script
+  api:
+    image: python:3.9-slim
+    container_name: api-health
+    restart: unless-stopped
+    working_dir: /app
+    command: ["python", "app.py"]
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./api:/app
+    environment:
+      - FLASK_ENV=production
+      - DB_HOST=database
+    depends_on:
+      database:
+        condition: service_healthy
+    # Custom health check script
+    healthcheck:
+      test: ["CMD", "python", "/app/health_check.py"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # Database with dependency health check
+  database:
+    image: postgres:14-alpine
+    container_name: db-health
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=appdb
+      - POSTGRES_USER=appuser
+      - POSTGRES_PASSWORD=apppassword
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # Database-specific health check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Redis cache with health monitoring
+  cache:
+    image: redis:alpine
+    container_name: redis-health
+    restart: unless-stopped
+    # Redis health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # Health check visualization dashboard
+  dashboard:
+    image: prom/prometheus:latest
+    container_name: health-dashboard
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+    depends_on:
+      - webapp
+      - api
+      - database
+      - cache
+
+volumes:
+  db-data:
+    driver: local
+
+# Usage:
+# docker-compose -f container-health-monitoring.yml up -d
+# docker-compose -f container-health-monitoring.yml ps (to see health status)
+
+# Health Check Best Practices Demonstrated:
+# 1. Service-specific health checks (web, API, database, cache)
+# 2. Dependency conditions (services wait for dependencies to be healthy)
+# 3. Custom health check scripts for complex applications
+# 4. Appropriate intervals and timeouts for different service types
+# 5. Start period to allow services time to initialize

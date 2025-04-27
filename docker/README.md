@@ -7,6 +7,12 @@ This directory contains examples of common Docker tasks and configurations.
 - `multi-stage-builds/`: Examples of Docker multi-stage builds for optimized images
 - `dev-prod-configs/`: Development and production Docker configurations
 - `compose-examples/`: Docker Compose examples for multi-container applications
+- `networking/`: Docker network configuration examples
+- `volumes/`: Volume management and data persistence examples
+- `healthchecks/`: Container health monitoring examples
+- `microservices/`: Microservices architecture examples with Docker Compose
+- `language-specific/`: Dockerfiles optimized for different programming languages
+- `dev-environments/`: Docker Compose configurations for development environments
 
 ## Usage
 

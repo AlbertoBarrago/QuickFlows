@@ -1,0 +1,92 @@
+# Docker Compose example for volume management and data persistence
+version: '3.8'
+
+services:
+  # Web application with mounted volumes
+  webapp:
+    image: node:18-alpine
+    container_name: webapp-volumes
+    working_dir: /app
+    command: ["node", "server.js"]
+    restart: unless-stopped
+    ports:
+      - "8000:3000"
+    volumes:
+      # Named volume for application data
+      - app-data:/app/data
+      # Bind mount for configuration
+      - ./config:/app/config:ro
+      # Bind mount for source code (useful for development)
+      - ./src:/app/src
+      # Anonymous volume for node_modules (prevents overwriting by bind mounts)
+      - /app/node_modules
+    environment:
+      - NODE_ENV=production
+      - CONFIG_PATH=/app/config/production.json
+
+  # Database with persistent storage
+  database:
+    image: mysql:8.0
+    container_name: mysql-persistent
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    volumes:
+      # Named volume for database files
+      - db-data:/var/lib/mysql
+      # Bind mount for initialization scripts
+      - ./init-scripts:/docker-entrypoint-initdb.d
+      # Bind mount for custom configuration
+      - ./mysql-config/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    environment:
+      - MYSQL_DATABASE=appdb
+      - MYSQL_USER=appuser
+      - MYSQL_PASSWORD=apppassword
+      - MYSQL_ROOT_PASSWORD=rootpassword
+    # Health check
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Backup service using volumes from database
+  backup:
+    image: alpine:latest
+    container_name: db-backup
+    depends_on:
+      - database
+    volumes:
+      # Mount the same database volume
+      - db-data:/var/lib/mysql:ro
+      # Mount a backup directory
+      - ./backups:/backups
+    command: ["/bin/sh", "-c", "echo 'Backup service ready' && tail -f /dev/null"]
+    # In a real scenario, you would set up a cron job or script to perform backups
+
+# Define named volumes
+volumes:
+  # Application data volume
+  app-data:
+    driver: local
+    # Optional: Configure volume driver options
+    driver_opts:
+      type: none
+      device: ${PWD}/app-data-dir
+      o: bind
+  
+  # Database data volume
+  db-data:
+    driver: local
+
+# Usage:
+# docker-compose -f data-persistence.yml up -d
+# docker-compose -f data-persistence.yml down
+# To preserve volumes when stopping: docker-compose -f data-persistence.yml down --volumes
+
+# Volume Types Demonstrated:
+# 1. Named volumes: Managed by Docker, persistent across container restarts
+# 2. Bind mounts: Maps host directory to container path
+# 3. Anonymous volumes: Temporary, used to prevent bind mounts from overwriting container data
+# 4. Read-only volumes: Prevents container from modifying mounted content

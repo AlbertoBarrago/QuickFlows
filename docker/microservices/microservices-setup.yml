@@ -1,0 +1,244 @@
+# Docker Compose example for microservices architecture
+version: '3.8'
+
+services:
+  # API Gateway service
+  api-gateway:
+    image: nginx:alpine
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./gateway/certs:/etc/nginx/certs:ro
+    networks:
+      - frontend
+    depends_on:
+      - auth-service
+      - user-service
+      - product-service
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Authentication microservice
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=auth-db
+      - REDIS_HOST=cache
+    networks:
+      - frontend
+      - auth-network
+    depends_on:
+      - auth-db
+      - cache
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # User management microservice
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=user-db
+      - AUTH_SERVICE_URL=http://auth-service:3000
+    networks:
+      - frontend
+      - user-network
+    depends_on:
+      - user-db
+      - auth-service
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Product catalog microservice
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    container_name: product-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=product-db
+      - AUTH_SERVICE_URL=http://auth-service:3000
+    networks:
+      - frontend
+      - product-network
+    depends_on:
+      - product-db
+      - auth-service
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Authentication database
+  auth-db:
+    image: mongo:5
+    container_name: auth-db
+    restart: unless-stopped
+    volumes:
+      - auth-db-data:/data/db
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "'db.adminCommand(\\'ping\\')'"] 
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # User database
+  user-db:
+    image: postgres:14-alpine
+    container_name: user-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=userdb
+      - POSTGRES_USER=userservice
+      - POSTGRES_PASSWORD=userpassword
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - user-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U userservice -d userdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Product database
+  product-db:
+    image: mysql:8.0
+    container_name: product-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=productdb
+      - MYSQL_USER=productservice
+      - MYSQL_PASSWORD=productpassword
+      - MYSQL_ROOT_PASSWORD=rootpassword
+    volumes:
+      - product-db-data:/var/lib/mysql
+    networks:
+      - product-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Shared cache service
+  cache:
+    image: redis:alpine
+    container_name: redis-cache
+    restart: unless-stopped
+    networks:
+      - frontend
+      - auth-network
+      - user-network
+      - product-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  # Monitoring service
+  monitoring:
+    image: prom/prometheus:latest
+    container_name: monitoring
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - monitoring-network
+      - frontend
+
+  # Logging service
+  logging:
+    image: grafana/loki:latest
+    container_name: logging
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    networks:
+      - monitoring-network
+
+  # Visualization dashboard
+  dashboard:
+    image: grafana/grafana:latest
+    container_name: dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - monitoring-network
+    depends_on:
+      - monitoring
+      - logging
+
+# Define networks for service isolation
+networks:
+  frontend:
+    driver: bridge
+  auth-network:
+    driver: bridge
+  user-network:
+    driver: bridge
+  product-network:
+    driver: bridge
+  monitoring-network:
+    driver: bridge
+
+# Define volumes for persistent data
+volumes:
+  auth-db-data:
+    driver: local
+  user-db-data:
+    driver: local
+  product-db-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+# Usage:
+# docker-compose -f microservices-setup.yml up -d
+# docker-compose -f microservices-setup.yml down
+
+# Microservices Architecture Benefits:
+# 1. Service isolation and independent scaling
+# 2. Technology diversity (different databases per service)
+# 3. Resilience through service independence
+# 4. Centralized monitoring and logging
+# 5. Shared caching for performance optimization
