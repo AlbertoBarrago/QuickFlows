@@ -59,4 +59,4 @@ Contributions are welcome! Feel free to submit pull requests to add new template
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License—see the LICENSE file for details.
