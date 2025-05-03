@@ -6,10 +6,11 @@ This repository contains a comprehensive collection of DevOps resources, includi
 
 ```
 devops_collection/
-├── pipelines/      # CI/CD pipeline templates for Node.js, Java, Python
-├── docker/         # Dockerfiles, Compose examples, and environment configs
-├── terraform/      # Infrastructure as Code for AWS, Azure, GCP
-├── kubernetes/     # Deployments, services, and ingress manifests
+├── pipelines/           # CI/CD pipeline templates for Node.js, Java, Python
+├── docker/              # Dockerfiles, Compose examples, and environment configs
+├── terraform/           # Infrastructure as Code for AWS, Azure, GCP
+├── kubernetes/          # Deployments, services, and ingress manifests
+├── logging-monitoring/  # Logging and monitoring configurations and examples
 └── README.md
 ```
 
@@ -37,6 +38,18 @@ This collection serves as:
 - **Docker**: Platform for developing, shipping, and running applications in containers
 - **Terraform**: Infrastructure as Code tool for building, changing, and versioning infrastructure
 - **Kubernetes**: Container orchestration platform for automating deployment, scaling, and management
+- **Prometheus & Grafana**: Monitoring and visualization tools for metrics collection and dashboarding
+- **ELK Stack**: Elasticsearch, Logstash, and Kibana for centralized logging and analysis
+
+## Logging and Monitoring
+
+The logging-monitoring section provides comprehensive resources for implementing effective observability in your applications and infrastructure:
+
+- **Prometheus & Grafana**: Configuration examples for metric collection, alerting rules, and pre-built dashboards for system and application monitoring
+- **Watchdog**: Service health monitoring configurations with support for HTTP endpoint checks, database connectivity verification, and notification integrations
+- **ELK Stack**: Complete setup for centralized logging using Elasticsearch, Logstash, and Kibana, including Filebeat configurations for log shipping and Logstash pipeline examples
+
+These examples can be adapted to monitor applications, infrastructure, and business metrics in various environments.
 
 ## Usage
 

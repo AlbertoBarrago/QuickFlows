@@ -1,0 +1,111 @@
+# Watchdog Configuration File
+# This is an example configuration for monitoring application health
+
+watchdog:
+  # General configuration
+  interval: 30s  # Check interval
+  log_level: info
+  log_file: /var/log/watchdog.log
+
+  # Email notifications
+  notifications:
+    email:
+      enabled: true
+      smtp_server: smtp.example.com
+      smtp_port: 587
+      username: alerts@example.com
+      # password: set via environment variable WATCHDOG_SMTP_PASSWORD
+      recipients:
+        - devops@example.com
+        - oncall@example.com
+
+  # Slack notifications
+  slack:
+    enabled: true
+    webhook_url: https://hooks.slack.com/services/TXXXXXXXX/BXXXXXXXX/XXXXXXXXXXXXXXXXXXXXXXXX
+    channel: "#alerts"
+
+  # Services to monitor
+  services:
+    # Web application monitoring
+    - name: web-app
+      type: http
+      url: https://example.com/health
+      method: GET
+      timeout: 5s
+      expected_status: 200
+      expected_content: "status":"ok"
+      headers:
+        User-Agent: Watchdog-Monitor/1.0
+      retry_attempts: 3
+      retry_interval: 10s
+
+    # Database monitoring
+    - name: database
+      type: tcp
+      host: db.example.com
+      port: 5432
+      timeout: 3s
+      retry_attempts: 2
+      retry_interval: 5s
+
+    # Custom script monitoring
+    - name: custom-check
+      type: script
+      command: /opt/scripts/check_disk_space.sh
+      args: ["/data", "90"]
+      timeout: 10s
+      expected_exit_code: 0
+
+  # System resource monitoring
+  resources:
+    enabled: true
+    # CPU usage threshold
+    cpu:
+      warning_threshold: 80  # percentage
+      critical_threshold: 90 # percentage
+      duration: 5m          # alert if threshold exceeded for this duration
+
+    # Memory usage threshold
+    memory:
+      warning_threshold: 80  # percentage
+      critical_threshold: 90 # percentage
+      duration: 5m          # alert if threshold exceeded for this duration
+
+    # Disk usage threshold
+    disk:
+      warning_threshold: 80  # percentage
+      critical_threshold: 90 # percentage
+      paths:
+        - /
+        - /data
+        - /var/log
+
+  # Process monitoring
+  processes:
+    - name: nginx
+      min_count: 1
+      max_count: 10
+      restart_command: systemctl restart nginx
+
+    - name: app-server
+      min_count: 2
+      pattern: "node /opt/app/server.js"
+      restart_command: systemctl restart app-server
+
+  # Log file monitoring
+  log_monitors:
+    - file: /var/log/application.log
+      patterns:
+        - pattern: "ERROR"
+          severity: critical
+        - pattern: "WARNING"
+          severity: warning
+      max_lines: 1000  # Maximum number of lines to read from the end of file
+
+  # Heartbeat monitoring
+  heartbeat:
+    enabled: true
+    endpoint: https://heartbeat.example.com/report
+    interval: 60s
+    timeout: 5s

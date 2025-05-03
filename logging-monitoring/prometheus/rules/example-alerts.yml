@@ -1,0 +1,34 @@
+# Example Prometheus Alerting Rules (example-alerts.yml)
+
+groups:
+- name: example_alerts
+  rules:
+  # Alert for any instance that is unreachable for >5 minutes.
+  - alert: InstanceDown
+    expr: up == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.instance }} down"
+      description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
+
+  # Example alert for high CPU usage (replace with actual metric)
+  # - alert: HighCpuUsage
+  #   expr: job:node_cpu_seconds:avg_rate5m{mode="idle"} < 0.1
+  #   for: 10m
+  #   labels:
+  #     severity: warning
+  #   annotations:
+  #     summary: "High CPU usage on {{ $labels.instance }}"
+  #     description: "CPU usage is high on instance {{ $labels.instance }} (job {{ $labels.job }})."
+
+  # Example alert for high memory usage (replace with actual metric)
+  # - alert: HighMemoryUsage
+  #   expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100 < 10
+  #   for: 10m
+  #   labels:
+  #     severity: warning
+  #   annotations:
+  #     summary: "High Memory usage on {{ $labels.instance }}"
+  #     description: "Memory usage is high on instance {{ $labels.instance }} (job {{ $labels.job }})."

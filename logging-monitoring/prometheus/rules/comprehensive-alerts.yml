@@ -1,0 +1,207 @@
+# Comprehensive Prometheus Alerting Rules
+
+groups:
+- name: system_alerts
+  rules:
+  # Instance availability alerts
+  - alert: InstanceDown
+    expr: up == 0
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Instance {{ $labels.instance }} down"
+      description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
+      dashboard_url: "https://grafana.example.com/d/system-monitoring"
+
+  # CPU usage alerts
+  - alert: HighCpuUsage
+    expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU usage on {{ $labels.instance }}"
+      description: "CPU usage is above 85% for more than 10 minutes on {{ $labels.instance }}."
+      value: "{{ $value }}%"
+
+  - alert: CriticalCpuUsage
+    expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Critical CPU usage on {{ $labels.instance }}"
+      description: "CPU usage is above 95% for more than 5 minutes on {{ $labels.instance }}."
+      value: "{{ $value }}%"
+
+  # Memory usage alerts
+  - alert: HighMemoryUsage
+    expr: (node_memory_MemTotal_bytes - (node_memory_MemFree_bytes + node_memory_Buffers_bytes + node_memory_Cached_bytes)) / node_memory_MemTotal_bytes * 100 > 85
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High memory usage on {{ $labels.instance }}"
+      description: "Memory usage is above 85% for more than 10 minutes on {{ $labels.instance }}."
+      value: "{{ $value }}%"
+
+  - alert: CriticalMemoryUsage
+    expr: (node_memory_MemTotal_bytes - (node_memory_MemFree_bytes + node_memory_Buffers_bytes + node_memory_Cached_bytes)) / node_memory_MemTotal_bytes * 100 > 95
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Critical memory usage on {{ $labels.instance }}"
+      description: "Memory usage is above 95% for more than 5 minutes on {{ $labels.instance }}."
+      value: "{{ $value }}%"
+
+  # Disk usage alerts
+  - alert: HighDiskUsage
+    expr: 100 - ((node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|fuse.lxcfs|squashfs"} * 100) / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|fuse.lxcfs|squashfs"}) > 85
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High disk usage on {{ $labels.instance }}"
+      description: "Disk usage is above 85% for more than 10 minutes on {{ $labels.instance }} at {{ $labels.mountpoint }}."
+      value: "{{ $value }}%"
+
+  - alert: CriticalDiskUsage
+    expr: 100 - ((node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|fuse.lxcfs|squashfs"} * 100) / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|fuse.lxcfs|squashfs"}) > 95
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Critical disk usage on {{ $labels.instance }}"
+      description: "Disk usage is above 95% for more than 5 minutes on {{ $labels.instance }} at {{ $labels.mountpoint }}."
+      value: "{{ $value }}%"
+
+  # Disk will fill in 24h alert
+  - alert: DiskWillFillIn24Hours
+    expr: predict_linear(node_filesystem_free_bytes{fstype!~"tmpfs|fuse.lxcfs|squashfs"}[1h], 24 * 3600) < 0
+    for: 30m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Disk will fill in 24 hours on {{ $labels.instance }}"
+      description: "Disk {{ $labels.mountpoint }} on {{ $labels.instance }} will fill in 24 hours at current write rate."
+
+- name: application_alerts
+  rules:
+  # High HTTP error rate
+  - alert: HighErrorRate
+    expr: sum(rate(http_requests_total{status=~"5.."}[5m])) by (service) / sum(rate(http_requests_total[5m])) by (service) > 0.05
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High HTTP error rate for {{ $labels.service }}"
+      description: "Service {{ $labels.service }} has error rate above 5% for more than 5 minutes."
+      value: "{{ $value | humanizePercentage }}"
+
+  # Critical HTTP error rate
+  - alert: CriticalErrorRate
+    expr: sum(rate(http_requests_total{status=~"5.."}[5m])) by (service) / sum(rate(http_requests_total[5m])) by (service) > 0.15
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Critical HTTP error rate for {{ $labels.service }}"
+      description: "Service {{ $labels.service }} has error rate above 15% for more than 5 minutes."
+      value: "{{ $value | humanizePercentage }}"
+
+  # High latency
+  - alert: HighLatency
+    expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)) > 1
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High latency for {{ $labels.service }}"
+      description: "Service {{ $labels.service }} has 95th percentile latency above 1s for more than 5 minutes."
+      value: "{{ $value }}s"
+
+  # Service saturation
+  - alert: ServiceSaturation
+    expr: sum(rate(http_requests_total[5m])) by (service) > 100
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Service saturation for {{ $labels.service }}"
+      description: "Service {{ $labels.service }} is receiving more than 100 requests per second for more than 5 minutes."
+      value: "{{ $value }} req/s"
+
+  # Service down
+  - alert: ServiceDown
+    expr: up{job=~".*-service"} == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Service {{ $labels.job }} is down"
+      description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute."
+
+- name: database_alerts
+  rules:
+  # Database connection pool saturation
+  - alert: DatabaseConnectionPoolSaturation
+    expr: sum(db_connections_used) by (instance) / sum(db_connections_max) by (instance) > 0.8
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Database connection pool saturation on {{ $labels.instance }}"
+      description: "Database {{ $labels.instance }} connection pool is above 80% for more than 5 minutes."
+      value: "{{ $value | humanizePercentage }}"
+
+  # High database query time
+  - alert: HighDatabaseQueryTime
+    expr: histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le, instance)) > 0.5
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High database query time on {{ $labels.instance }}"
+      description: "Database {{ $labels.instance }} has 95th percentile query time above 0.5s for more than 5 minutes."
+      value: "{{ $value }}s"
+
+- name: custom_business_alerts
+  rules:
+  # Low order rate
+  - alert: LowOrderRate
+    expr: sum(rate(orders_total[30m])) < 10
+    for: 30m
+    labels:
+      severity: warning
+      team: business
+    annotations:
+      summary: "Low order rate detected"
+      description: "Order rate has been below 10 orders per minute for 30 minutes."
+      value: "{{ $value }} orders/min"
+
+  # High cart abandonment
+  - alert: HighCartAbandonment
+    expr: (sum(rate(cart_abandonment_total[15m])) / sum(rate(cart_creation_total[15m]))) > 0.7
+    for: 15m
+    labels:
+      severity: warning
+      team: business
+    annotations:
+      summary: "High cart abandonment rate"
+      description: "Cart abandonment rate has been above 70% for 15 minutes."
+      value: "{{ $value | humanizePercentage }}"
+
+  # Payment processing errors
+  - alert: PaymentProcessingErrors
+    expr: sum(rate(payment_errors_total[5m])) / sum(rate(payment_attempts_total[5m])) > 0.05
+    for: 5m
+    labels:
+      severity: critical
+      team: payments
+    annotations:
+      summary: "High payment processing error rate"
+      description: "Payment processing error rate is above 5% for 5 minutes."
+      value: "{{ $value | humanizePercentage }}"
+      dashboard_url: "https://grafana.example.com/d/payments-dashboard"

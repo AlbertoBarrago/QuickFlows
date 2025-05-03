@@ -1,0 +1,96 @@
+# Filebeat Configuration
+# Collects and ships log files to Elasticsearch or Logstash
+
+filebeat.inputs:
+- type: container
+  enabled: true
+  paths:
+    - /var/lib/docker/containers/*/*.log
+  json.message_key: log
+  json.keys_under_root: true
+  processors:
+    - add_docker_metadata:
+        host: "unix:///var/run/docker.sock"
+    - add_kubernetes_metadata:
+        in_cluster: true
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/*.log
+    - /var/log/messages
+    - /var/log/syslog
+  fields:
+    log_source: system
+  fields_under_root: true
+
+# Application specific logs
+- type: log
+  enabled: true
+  paths:
+    - /var/log/nginx/access.log
+  fields:
+    log_source: nginx
+    log_type: access
+  fields_under_root: true
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/nginx/error.log
+  fields:
+    log_source: nginx
+    log_type: error
+  fields_under_root: true
+
+# Custom application logs
+- type: log
+  enabled: true
+  paths:
+    - /var/log/app/*.log
+  fields:
+    log_source: application
+  fields_under_root: true
+  multiline:
+    pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+    negate: true
+    match: after
+
+# Processors for all inputs
+processors:
+- add_host_metadata: ~
+- add_cloud_metadata: ~
+- add_docker_metadata: ~
+- add_kubernetes_metadata: ~
+
+# Output configuration
+output.elasticsearch:
+  enabled: false
+  hosts: ["elasticsearch:9200"]
+  indices:
+    - index: "filebeat-%{[agent.version]}-%{+yyyy.MM.dd}"
+
+# Alternative output to Logstash
+output.logstash:
+  enabled: true
+  hosts: ["logstash:5044"]
+  loadbalance: true
+  ssl.enabled: false
+
+# Template settings
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+
+# Kibana connection for dashboards
+setup.kibana:
+  host: "kibana:5601"
+
+# Logging settings
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
